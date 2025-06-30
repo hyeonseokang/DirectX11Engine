@@ -1,0 +1,4 @@
+﻿  Engine.cpp
+C:\Users\ekrmd\Desktop\DirectX11Engine\Engine_Core\Engine.cpp(287,22): warning C4838: 'UINT'에서 'LONG'(으)로의 변환에는 축소 변환이 필요합니다.
+C:\Users\ekrmd\Desktop\DirectX11Engine\Engine_Core\Engine.cpp(287,29): warning C4838: 'UINT'에서 'LONG'(으)로의 변환에는 축소 변환이 필요합니다.
+  Engine_Core.vcxproj -> C:\Users\ekrmd\Desktop\DirectX11Engine\x64\Debug\Engine_Core.lib

@@ -1,0 +1,5 @@
+﻿C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(534,5): warning MSB8028: 중간 디렉터리(x64\Debug\)에 다른 프로젝트(WakWakEngine.vcxproj)에서 공유하는 파일이 포함되어 있습니다.  이로 인해 잘못된 정리 및 다시 빌드 동작이 수행될 수 있습니다.
+  Engine.cpp
+C:\Users\ekrmd\Desktop\WakWakEngine-DirectX\WakWakEngine\WakWakEngine\Engine.cpp(287,22): warning C4838: 'UINT'에서 'LONG'(으)로의 변환에는 축소 변환이 필요합니다.
+C:\Users\ekrmd\Desktop\WakWakEngine-DirectX\WakWakEngine\WakWakEngine\Engine.cpp(287,29): warning C4838: 'UINT'에서 'LONG'(으)로의 변환에는 축소 변환이 필요합니다.
+  WakWakEngine.vcxproj -> C:\Users\ekrmd\Desktop\WakWakEngine-DirectX\WakWakEngine\x64\Debug\Engine_Core.lib
