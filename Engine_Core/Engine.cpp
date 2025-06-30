@@ -5,6 +5,7 @@ using namespace DirectX;
 struct Vertex
 {
 	DirectX::XMFLOAT3 Position;
+	DirectX::XMFLOAT4 Color;
 };
 
 
@@ -146,8 +147,8 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 	D3D11_VIEWPORT viewport;
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
-	viewport.Width = static_cast<float>(width);
-	viewport.Height = static_cast<float>(height);
+	viewport.Width = static_cast<float>(mWidth);
+	viewport.Height = static_cast<float>(mHeight);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
@@ -167,7 +168,7 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 
 	ID3DBlob* errorBlob = nullptr;
 	// Vertex Shader 컴파일[
-	hr = D3DCompileFromFile(L"..//Engine_Core//test.fxh", nullptr, nullptr, "VS", "vs_4_0",
+	hr = D3DCompileFromFile(L"..//Engine_Core//test.fxh", nullptr, nullptr, "VS", "vs_5_0",
 		dwShaderFlags, 0, &vsBlob, &errorBlob);
 
 	//hr = D3DCompileFromFile(L"..\\WakWakEngine\\VS.hlsl", nullptr, nullptr, "main", "vs_4_0", 0, 0, &vsBlob, &errorBlob);
@@ -188,19 +189,10 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 		psBlob->Release();
 		return;
 	}
-	D3D11_INPUT_ELEMENT_DESC layout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-	};
-	UINT numElements = ARRAYSIZE(layout);
-
-	md3device->CreateInputLayout(layout, numElements,
-		vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &mInputLayout);
-
-	md3context->IASetInputLayout(mInputLayout);
+	
 
 	// Pixel Shader 컴파일
-	hr = D3DCompileFromFile(L"..\\Engine_Core\\test.fxh", nullptr, nullptr, "PS", "ps_4_0",
+	hr = D3DCompileFromFile(L"..\\Engine_Core\\test.fxh", nullptr, nullptr, "PS", "ps_5_0",
 		dwShaderFlags, 0, &psBlob, &errorBlob);
 
 
@@ -217,22 +209,42 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 	md3device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &mPS);
 
 
-	// 버텍스 버퍼 생성
-	D3D11_BUFFER_DESC vbd = {};
-	vbd.Usage = D3D11_USAGE_DEFAULT;
-	vbd.ByteWidth = sizeof(Vertex) * 3;
-	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.CPUAccessFlags = 0;
+	D3D11_INPUT_ELEMENT_DESC layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+	UINT numElements = ARRAYSIZE(layout);
+
+	md3device->CreateInputLayout(layout, numElements,
+		vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &mInputLayout);
+
+	md3context->IASetInputLayout(mInputLayout);
 
 	Vertex vertices[] =
 	{
-		XMFLOAT3(0.0f, 0.5f, 0.0f),
-		XMFLOAT3(0.5f, -0.5f,0.0f),
-		XMFLOAT3(-0.5f, -0.5f, 0.0f),
+		{
+			XMFLOAT3(0.0f, 1.0f, 0.0f),
+			XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),
+		},
+		{
+			XMFLOAT3(1.0f, -1.0f, 0.0f),
+			XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f),
+		},
+		{
+			XMFLOAT3(-1.0f, -1.0f, 0.0f),
+			XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f),
+		},
 	};
 
-	D3D11_SUBRESOURCE_DATA initData = {};
-	initData.pSysMem = vertices;
+	// 버텍스 버퍼 생성
+	D3D11_BUFFER_DESC vbd = {};
+	vbd.Usage = D3D11_USAGE_DYNAMIC;
+	vbd.ByteWidth = sizeof(Vertex) * 3;
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	D3D11_SUBRESOURCE_DATA initData = { vertices }; 
 	hr = md3device->CreateBuffer(&vbd, &initData, &mVertexBuffer);
 	if (FAILED(hr))
 	{
@@ -263,7 +275,7 @@ void Engine_Core::Engine::Update()
 void Engine_Core::Engine::Render()
 {
 	// 렌더타겟 클리어 (하얀 배경)
-	float clearColor[4] = { 0.098039225f, 0.098039225f, 0.439215720f, 1.f };
+	float clearColor[4] = { 0.0f, 0.098039225f, 0.439215720f, 1.f };
 	
 	md3context->ClearRenderTargetView(mRenderTargetView, clearColor);
 	md3context->ClearDepthStencilView(
@@ -279,7 +291,7 @@ void Engine_Core::Engine::Render()
 	md3context->Draw(3, 0);
 
 	// Present the information rendered to the back buffer to the front buffer (the screen)
-	mSwapChain->Present(0, 0);
+	mSwapChain->Present(1, 0);
 }
 
 void Engine_Core::Engine::InitWindowRect(UINT width, UINT height)

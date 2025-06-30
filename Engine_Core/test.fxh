@@ -1,23 +1,26 @@
-//--------------------------------------------------------------------------------------
-// File: Tutorial02.fx
-//
-// Copyright (c) Microsoft Corporation.
-// Licensed under the MIT License (MIT).
-//--------------------------------------------------------------------------------------
-
-//--------------------------------------------------------------------------------------
-// Vertex Shader
-//--------------------------------------------------------------------------------------
-float4 VS(float4 Pos : POSITION) : SV_POSITION
+struct VS_Input
 {
-    return Pos;
+    float3 pos : POSITION;
+    float4 color : COLOR;
+};
+
+struct VS_Output
+{
+    float4 pos : SV_POSITION;
+    float4 color : COLOR;
+};
+
+VS_Output VS(VS_Input input)
+{
+    VS_Output output;
+    
+    output.pos = float4(input.pos, 1.0f);
+    output.color = input.color;
+
+    return output;
 }
 
-
-//--------------------------------------------------------------------------------------
-// Pixel Shader
-//--------------------------------------------------------------------------------------
-float4 PS(float4 Pos : SV_POSITION) : SV_Target
+float4 PS(VS_Output input) : SV_Target
 {
-    return float4(0.0f, 1.0f, 0.0f, 1.0f); // Yellow, with Alpha = 1
+    return input.color;
 }
