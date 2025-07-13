@@ -8,10 +8,6 @@ struct Vertex
 	DirectX::XMFLOAT4 Color;
 };
 
-
-
-
-
 Engine_Core::Engine::Engine() :mHwnd(nullptr), mWidth(0), mHeight(0)
 {
 }
@@ -25,7 +21,109 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 
 	mHwnd = hwnd;
 	InitWindowRect(width, height);
+	if (CreateDeviceAndSwapChaing() == false)
+	{
+		return;
+	}
+	if (CreateDepthStencilBuffer() == false)
+	{
+		return;
+	}
+	if (SetViewport(mWidth, mHeight) == false)
+	{
+		return;
+	}
+	if (CreateVertextShader(L"..//Engine_Core//test.fxh") == false)
+	{
+		return;
+	}
+	if (CreatePixelShader(L"..\\Engine_Core\\test.fxh") == false)
+	{
+		return;
+	}
+	if (SetInputLayout() == false)
+	{
+		return;
+	}
+}
 
+void Engine_Core::Engine::Run()
+{
+	Update();
+	Render();
+}
+
+void Engine_Core::Engine::Update()
+{
+	
+}
+
+void Engine_Core::Engine::Render()
+{
+	// 렌더타겟 클리어 (하얀 배경)
+	float clearColor[4] = { 0.0f, 0.098039225f, 0.439215720f, 1.f };
+	
+	md3context->ClearRenderTargetView(mRenderTargetView, clearColor);
+	md3context->ClearDepthStencilView(
+		mDepthStencilView,
+		D3D11_CLEAR_DEPTH,
+		1.0f,   // 깊이 클리어 값
+		0);    // 스텐실 클리어 값(안 쓰면 0)
+
+	 
+	static int cnt = 0;
+	static double test = 0.5f;
+	if (cnt % 100 == 0) {
+		test = 0.0f;
+	}
+	test += 0.01f;
+	cnt++;
+	Vertex vertices[] =
+	{
+		{
+			XMFLOAT3(0.0f, 1.0f + test, 0.0f),
+			XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),
+		},
+		{
+			XMFLOAT3(1.0f, -1.0f + test, 0.0f),
+			XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f),
+		},
+		{
+			XMFLOAT3(-1.0f, -1.0f + test, 0.0f),
+			XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f),
+		},
+	};
+
+	// 버텍스 버퍼 생성
+	D3D11_BUFFER_DESC vbd = {};
+	vbd.Usage = D3D11_USAGE_DYNAMIC;
+	vbd.ByteWidth = sizeof(Vertex) * 3;
+	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	D3D11_SUBRESOURCE_DATA initData = { vertices };
+	md3device->CreateBuffer(&vbd, &initData, &mVertexBuffer);
+
+	// Set vertex buffer
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	md3context->IASetVertexBuffers(0, 1, &mVertexBuffer, &stride, &offset);
+
+	// Set primitive topology
+	md3context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+
+	// Render a triangle
+	md3context->VSSetShader(mVS, nullptr, 0);
+	md3context->PSSetShader(mPS, nullptr, 0);
+	md3context->Draw(3, 0);
+
+	// Present the information rendered to the back buffer to the front buffer (the screen)
+	mSwapChain->Present(1, 0);
+}
+
+bool Engine_Core::Engine::CreateDeviceAndSwapChaing()
+{
 	UINT flags = 0;
 	D3D_FEATURE_LEVEL featurelevel;
 
@@ -39,27 +137,25 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 		&featurelevel,
 		&md3context);
 
-	if (FAILED(hr)) {
+
+	if (FAILED(hr))
+	{
 		OutputDebugString(L"Faild\n");
+		return false;
 	}
-	else {
+	else
+	{
 		OutputDebugString(L"Success\n");
 	}
-	WCHAR currentDir[MAX_PATH];
-	GetCurrentDirectoryW(MAX_PATH, currentDir);
-	OutputDebugStringW(L"Current Directory: ");
-	OutputDebugStringW(currentDir);
-	OutputDebugStringW(L"\n");
 
-	UINT m4xMsaaQuality = 0; // 초기화 중요!
-
+#pragma region Msaa 설정
 	hr = md3device->CheckMultisampleQualityLevels(
 		DXGI_FORMAT_R8G8B8A8_UNORM, 4, &m4xMsaaQuality);
-	
+
 	if (SUCCEEDED(hr)) {
 		OutputDebugString(L"CheckMultisampleQualityLevels success\n!");
 	}
-
+#pragma endregion
 
 	DXGI_SWAP_CHAIN_DESC sd;
 	sd.BufferDesc.Width = mWidth;
@@ -87,6 +183,7 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 		sd.SampleDesc.Quality = 0;
 	}
 
+
 	IDXGIDevice* dxgiDevice = 0;
 	hr = md3device->QueryInterface(__uuidof(IDXGIDevice),
 		(void**)&dxgiDevice);
@@ -110,7 +207,11 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 		&mRenderTargetView);
 	backBuffer->Release();
 
+	return true;
+}
 
+bool Engine_Core::Engine::CreateDepthStencilBuffer()
+{
 	D3D11_TEXTURE2D_DESC depthStencilDesc = {};
 	depthStencilDesc.Width = mWidth;
 	depthStencilDesc.Height = mHeight;
@@ -124,17 +225,22 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 	depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
 	depthStencilDesc.CPUAccessFlags = 0;
 	depthStencilDesc.MiscFlags = 0;
-	 hr = md3device->CreateTexture2D(&depthStencilDesc, nullptr, &mDepthStencilBuffer);
+	HRESULT hr = md3device->CreateTexture2D(&depthStencilDesc, nullptr, &mDepthStencilBuffer);
+
 	if (FAILED(hr)) {
 		OutputDebugString(L"Depth buffer creation failed\n");
+		return false;
 	}
 	else
 	{
 		OutputDebugStringA("CreateTexture2D for depth succeeded\n");
 	}
+
 	hr = md3device->CreateDepthStencilView(mDepthStencilBuffer, nullptr, &mDepthStencilView);
+
 	if (FAILED(hr)) {
 		OutputDebugString(L"DepthStencilView creation failed\n");
+		return false;
 	}
 	else {
 
@@ -143,18 +249,26 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 
 	md3context->OMSetRenderTargets(1, &mRenderTargetView, mDepthStencilView);
 
+	return true;
+}
 
+bool Engine_Core::Engine::SetViewport(int width, int height)
+{
 	D3D11_VIEWPORT viewport;
 	viewport.TopLeftX = 0.0f;
 	viewport.TopLeftY = 0.0f;
-	viewport.Width = static_cast<float>(mWidth);
-	viewport.Height = static_cast<float>(mHeight);
+	viewport.Width = static_cast<float>(width);
+	viewport.Height = static_cast<float>(height);
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 
 	md3context->RSSetViewports(1, &viewport);
+	return true;
+}
 
-	DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+bool Engine_Core::Engine::InitShader()
+{
+	dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
 #ifdef _DEBUG
 	// Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
 	// Setting this flag improves the shader debugging experience, but still allows 
@@ -165,50 +279,50 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 	// Disable optimizations to further improve shader debugging
 	dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
+	return true;
+}
 
-	ID3DBlob* errorBlob = nullptr;
-	// Vertex Shader 컴파일[
-	hr = D3DCompileFromFile(L"..//Engine_Core//test.fxh", nullptr, nullptr, "VS", "vs_5_0",
+bool Engine_Core::Engine::CreateVertextShader(const std::wstring& filePath)
+{
+	HRESULT hr = D3DCompileFromFile(filePath.c_str(), nullptr, nullptr, "VS", "vs_5_0",
 		dwShaderFlags, 0, &vsBlob, &errorBlob);
 
-	//hr = D3DCompileFromFile(L"..\\WakWakEngine\\VS.hlsl", nullptr, nullptr, "main", "vs_4_0", 0, 0, &vsBlob, &errorBlob);
-	if (FAILED(hr)) OutputDebugString(L"Vertex shader compile failed\n");
 	if (FAILED(hr)) {
 		if (errorBlob) {
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
 			errorBlob->Release();
 		}
 		OutputDebugString(L"Vertex shader compile failed\n");
-		return;
+		return false;
 	}
 
 
 	md3device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), nullptr, &mVS);
-	if (FAILED(hr))
-	{
-		psBlob->Release();
-		return;
-	}
-	
 
+	return true;
+}
+
+bool Engine_Core::Engine::CreatePixelShader(const std::wstring& filePath)
+{
 	// Pixel Shader 컴파일
-	hr = D3DCompileFromFile(L"..\\Engine_Core\\test.fxh", nullptr, nullptr, "PS", "ps_5_0",
+	HRESULT hr = D3DCompileFromFile(filePath.c_str(), nullptr, nullptr, "PS", "ps_5_0",
 		dwShaderFlags, 0, &psBlob, &errorBlob);
 
-
-	//hr = D3DCompileFromFile(L"..\\WakWakEngine\\PS.hlsl", nullptr, nullptr, "main", "ps_4_0", 0, 0, &psBlob, &errorBlob);
-	if (FAILED(hr)) OutputDebugString(L"Pixel shader compile failed\n");
 	if (FAILED(hr)) {
 		if (errorBlob) {
 			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
 			errorBlob->Release();
 		}
 		OutputDebugString(L"Vertex shader compile failed\n");
-		return;
+		return false;
 	}
 	md3device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &mPS);
 
+	return true;
+}
 
+bool Engine_Core::Engine::SetInputLayout()
+{
 	D3D11_INPUT_ELEMENT_DESC layout[] =
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
@@ -220,78 +334,7 @@ void Engine_Core::Engine::Init(HWND hwnd, UINT width, UINT height)
 		vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &mInputLayout);
 
 	md3context->IASetInputLayout(mInputLayout);
-
-	Vertex vertices[] =
-	{
-		{
-			XMFLOAT3(0.0f, 1.0f, 0.0f),
-			XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f),
-		},
-		{
-			XMFLOAT3(1.0f, -1.0f, 0.0f),
-			XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f),
-		},
-		{
-			XMFLOAT3(-1.0f, -1.0f, 0.0f),
-			XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f),
-		},
-	};
-
-	// 버텍스 버퍼 생성
-	D3D11_BUFFER_DESC vbd = {};
-	vbd.Usage = D3D11_USAGE_DYNAMIC;
-	vbd.ByteWidth = sizeof(Vertex) * 3;
-	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-
-	D3D11_SUBRESOURCE_DATA initData = { vertices }; 
-	hr = md3device->CreateBuffer(&vbd, &initData, &mVertexBuffer);
-	if (FAILED(hr))
-	{
-		OutputDebugString(L"Failed to create vertex buffer\n");
-	}
-
-	// Set vertex buffer
-	UINT stride = sizeof(Vertex);
-	UINT offset = 0;
-	md3context->IASetVertexBuffers(0, 1, &mVertexBuffer, &stride, &offset);
-
-	// Set primitive topology
-	md3context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-}
-
-void Engine_Core::Engine::Run()
-{
-	Update();
-	Render();
-}
-
-void Engine_Core::Engine::Update()
-{
-
-}
-
-void Engine_Core::Engine::Render()
-{
-	// 렌더타겟 클리어 (하얀 배경)
-	float clearColor[4] = { 0.0f, 0.098039225f, 0.439215720f, 1.f };
-	
-	md3context->ClearRenderTargetView(mRenderTargetView, clearColor);
-	md3context->ClearDepthStencilView(
-		mDepthStencilView,
-		D3D11_CLEAR_DEPTH,
-		1.0f,   // 깊이 클리어 값
-		0);    // 스텐실 클리어 값(안 쓰면 0)
-
-
-	// Render a triangle
-	md3context->VSSetShader(mVS, nullptr, 0);
-	md3context->PSSetShader(mPS, nullptr, 0);
-	md3context->Draw(3, 0);
-
-	// Present the information rendered to the back buffer to the front buffer (the screen)
-	mSwapChain->Present(1, 0);
+	return true;
 }
 
 void Engine_Core::Engine::InitWindowRect(UINT width, UINT height)

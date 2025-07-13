@@ -2,7 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>C:\Users\ekrmd\Desktop\DirectX11Engine\x64\Debug\Engine_Window.exe</FullPath>
+      <FullPath>C:\DirectX11Engine\x64\Debug\Engine_Window.exe</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />
